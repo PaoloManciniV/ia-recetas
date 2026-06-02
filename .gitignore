@@ -1,0 +1,12 @@
+# Archivos y carpetas que NO se suben a Git.
+# ¡Muy importante! El .env tiene claves secretas y NO debe subirse
+# (la rúbrica penaliza con -20 puntos si se expone una API key).
+
+.env
+*.db
+__pycache__/
+*.pyc
+venv/
+.venv/
+.pytest_cache/
+.DS_Store

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<!--
+============================================================
+  index.html  ·  Interfaz web del Generador de Recetas
+============================================================
+  Esta es la "cara" de la app: lo que ve y usa el usuario.
+  Tiene dos pantallas:
+    1. Acceso  -> registrarse o iniciar sesión
+    2. Despensa -> ver, agregar y borrar ingredientes
+
+  Cómo funciona por dentro (resumen para el equipo):
+    - Hablamos con la API usando fetch() (peticiones HTTP).
+    - Al iniciar sesión guardamos el token en el navegador
+      (localStorage) y lo mandamos en cada petición protegida.
+    - Todo el JavaScript está al final, comentado paso a paso.
+
+  PENDIENTE para el equipo: cuando exista el módulo de RECETAS,
+  agregar aquí un botón "Generar receta" que llame a ese endpoint.
+============================================================
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Mercadito · Generador de Recetas</title>
+  <link rel="icon" href="/favicon.ico">
+
+  <!-- Usamos Helvetica (fuente del sistema, no requiere internet) -->
+
+  <style>
+    /* ---------- Variables de color (naranja, blanco y negro) ---------- */
+    :root {
+      --crema:      #f4f4f3;   /* superficie clara (fondo, inputs, items) */
+      --crema-osc:  #e2e2e0;   /* bordes y textura de puntos */
+      --tomate:     #ff6a00;   /* color de acento (naranja) */
+      --tomate-osc: #e85d00;   /* naranja mas oscuro (al pasar el mouse) */
+      --verde:      #161616;   /* (reutilizado) negro para el boton editar */
+      --carbon:     #161616;   /* texto (negro) */
+      --gris:       #6b6b6b;   /* texto secundario (gris) */
+      --blanco:     #ffffff;   /* blanco puro (tarjetas) */
+      --sombra:     0 10px 30px rgba(0, 0, 0, 0.10);
+      --radio:      18px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--crema);
+      /* textura sutil de puntos para dar calidez al fondo */
+      background-image: radial-gradient(var(--crema-osc) 1.2px, transparent 1.2px);
+      background-size: 22px 22px;
+      color: var(--carbon);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    /* ---------- Encabezado ---------- */
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+      animation: subir 0.6s ease both;
+    }
+    header h1 {
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 800;
+      font-size: 42px;
+      letter-spacing: -0.5px;
+      margin-top: 8px;
+    }
+    header h1 span { color: var(--tomate); }
+    header p { color: var(--gris); margin-top: 6px; font-size: 16px; }
+
+    /* ---------- Tarjeta central ---------- */
+    .tarjeta {
+      background: var(--blanco);
+      border-radius: var(--radio);
+      box-shadow: var(--sombra);
+      width: 100%;
+      max-width: 480px;
+      padding: 34px;
+      animation: subir 0.7s ease both;
+    }
+
+    /* ---------- Pestañas (Iniciar sesión / Registrarse) ---------- */
+    .pestanas { display: flex; gap: 8px; margin-bottom: 24px; }
+    .pestanas button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      background: var(--crema);
+      color: var(--gris);
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 600;
+      font-size: 15px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pestanas button.activa { background: var(--carbon); color: var(--blanco); }
+
+    /* ---------- Formularios ---------- */
+    label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      padding: 13px 15px;
+      border: 1.5px solid var(--crema-osc);
+      border-radius: 12px;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      margin-bottom: 16px;
+      background: var(--crema);
+      transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: var(--tomate); background: var(--blanco); }
+
+    /* ---------- Botones ---------- */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-principal { background: var(--tomate); color: var(--blanco); }
+    .btn-principal:hover { background: var(--tomate-osc); }
+    .btn-fantasma {
+      background: transparent;
+      color: var(--gris);
+      border: 1.5px solid var(--crema-osc);
+      width: auto;
+      padding: 9px 16px;
+      font-size: 14px;
+    }
+    .btn-fantasma:hover { border-color: var(--tomate); color: var(--tomate); }
+
+    /* ---------- Mensajes de aviso ---------- */
+    .aviso {
+      padding: 11px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;   /* oculto por defecto; se muestra desde el JS */
+    }
+    .aviso.error { background: #ffe6d6; color: var(--tomate-osc); display: block; }
+    .aviso.ok    { background: #161616; color: #ffffff;        display: block; }
+
+    /* ---------- Pantalla de despensa ---------- */
+    #pantalla-despensa { display: none; }   /* se muestra tras iniciar sesión */
+
+    .barra-usuario {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+    .barra-usuario .correo { font-size: 14px; color: var(--gris); }
+
+    .fila-agregar { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .fila-agregar input { margin-bottom: 8px; }
+    .fila-agregar .campo-nombre   { flex: 2; min-width: 130px; }
+    .fila-agregar .campo-cantidad { flex: 1; min-width: 70px; }
+    .fila-agregar .campo-unidad   { flex: 1; min-width: 90px; }
+
+    /* ---------- Lista de ingredientes ---------- */
+    .lista { list-style: none; margin-top: 18px; }
+    .lista li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      background: var(--crema);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      animation: subir 0.3s ease both;
+    }
+    .lista .info-ing { font-weight: 500; }
+    .lista .cantidad { color: var(--gris); font-size: 14px; font-weight: 400; }
+    .lista .borrar {
+      background: none;
+      border: 1.5px solid var(--crema-osc);
+      color: var(--tomate);
+      cursor: pointer;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 9px;
+    }
+    .lista .borrar:hover { background: #ffe6d6; border-color: var(--tomate); }
+
+    /* Botones Editar / Guardar (al lado de Eliminar) */
+    .acciones { display: flex; gap: 6px; flex-shrink: 0; }
+    .lista .editar {
+      background: none;
+      border: 1.5px solid var(--crema-osc);
+      color: var(--verde);
+      cursor: pointer;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 9px;
+    }
+    .lista .editar:hover { background: #f0f0f0; border-color: var(--carbon); }
+
+    /* Inputs que aparecen al editar una fila */
+    .fila-editar { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+    .fila-editar input {
+      margin-bottom: 0;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    .fila-editar input:nth-child(1) { flex: 2; min-width: 100px; }
+    .fila-editar input:nth-child(2) { flex: 1; min-width: 55px; }
+    .fila-editar input:nth-child(3) { flex: 1; min-width: 70px; }
+
+    .vacio { text-align: center; color: var(--gris); padding: 24px; font-style: italic; }
+
+    /* ---------- Animación de entrada ---------- */
+    @keyframes subir {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    footer { margin-top: 28px; color: var(--gris); font-size: 13px; text-align: center; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Mi <span>Mercadito</span></h1>
+    <p>Registra tus ingredientes y prepárate para cocinar</p>
+  </header>
+
+  <!-- ============ PANTALLA 1: ACCESO (login / registro) ============ -->
+  <div class="tarjeta" id="pantalla-acceso">
+    <div class="pestanas">
+      <button id="tab-login" class="activa" onclick="cambiarPestana('login')">Iniciar sesión</button>
+      <button id="tab-registro" onclick="cambiarPestana('registro')">Registrarse</button>
+    </div>
+
+    <!-- Aquí aparecen los mensajes de error o éxito -->
+    <div class="aviso" id="aviso-acceso"></div>
+
+    <label for="email">Correo electrónico</label>
+    <input type="email" id="email" placeholder="tucorreo@ejemplo.com">
+
+    <label for="password">Contraseña</label>
+    <input type="password" id="password" placeholder="••••••••">
+
+    <button class="btn btn-principal" id="btn-acceso" onclick="enviarAcceso()">Entrar</button>
+  </div>
+
+  <!-- ============ PANTALLA 2: DESPENSA (inventario) ============ -->
+  <div class="tarjeta" id="pantalla-despensa">
+    <div class="barra-usuario">
+      <span class="correo" id="texto-usuario"></span>
+      <button class="btn btn-fantasma" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+
+    <div class="aviso" id="aviso-despensa"></div>
+
+    <!-- Formulario para agregar un ingrediente -->
+    <div class="fila-agregar">
+      <input class="campo-nombre"   type="text"   id="ing-nombre"   placeholder="Ingrediente (ej: Tomate)">
+      <input class="campo-cantidad" type="number" id="ing-cantidad" placeholder="Cant." value="1" min="0">
+      <input class="campo-unidad"   type="text"   id="ing-unidad"   placeholder="Unidad" value="unidad">
+    </div>
+    <button class="btn btn-principal" onclick="agregarIngrediente()">Agregar al mercadito</button>
+
+    <!-- La lista de ingredientes se llena desde el JavaScript -->
+    <ul class="lista" id="lista-ingredientes"></ul>
+  </div>
+
+  <footer>Proyecto final · Tecnologías Web · 2026</footer>
+
+  <!-- ============================================================
+       JAVASCRIPT  ·  Toda la lógica de la página
+       ============================================================ -->
+  <script>
+    // ----------------------------------------------------------
+    // GUARDAR EL TOKEN
+    // Usamos localStorage: una memoria del navegador que no se
+    // borra al cerrar la pestaña. Ahí guardamos el token del login.
+    // ----------------------------------------------------------
+    function guardarToken(token) { localStorage.setItem("token", token); }
+    function obtenerToken()       { return localStorage.getItem("token"); }
+    function borrarToken()        { localStorage.removeItem("token"); }
+
+    // Variable para saber en qué pestaña estamos: "login" o "registro"
+    let modoAcceso = "login";
+
+    // ----------------------------------------------------------
+    // Cambiar entre las pestañas Iniciar sesión / Registrarse
+    // ----------------------------------------------------------
+    function cambiarPestana(modo) {
+      modoAcceso = modo;
+      document.getElementById("tab-login").classList.toggle("activa", modo === "login");
+      document.getElementById("tab-registro").classList.toggle("activa", modo === "registro");
+      document.getElementById("btn-acceso").textContent = modo === "login" ? "Entrar" : "Crear cuenta";
+      ocultarAviso("aviso-acceso");
+    }
+
+    // ----------------------------------------------------------
+    // Mostrar / ocultar mensajes de aviso
+    // ----------------------------------------------------------
+    function mostrarAviso(id, texto, tipo) {
+      const aviso = document.getElementById(id);
+      aviso.textContent = texto;
+      aviso.className = "aviso " + tipo;   // tipo: "error" u "ok"
+    }
+    function ocultarAviso(id) {
+      document.getElementById(id).className = "aviso";
+    }
+
+    // ----------------------------------------------------------
+    // ENVIAR el formulario de acceso (registro o login)
+    // ----------------------------------------------------------
+    async function enviarAcceso() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (!email || !password) {
+        mostrarAviso("aviso-acceso", "Escribe tu correo y contraseña.", "error");
+        return;
+      }
+
+      // Elegimos el endpoint según la pestaña activa
+      const ruta = modoAcceso === "login" ? "/usuarios/login" : "/usuarios/registro";
+
+      try {
+        // Hacemos la petición POST a la API enviando los datos como JSON
+        const respuesta = await fetch(ruta, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, password: password }),
+        });
+
+        const datos = await respuesta.json();
+
+        // Si la API respondió con error, lo mostramos
+        if (!respuesta.ok) {
+          mostrarAviso("aviso-acceso", datos.detail || "Ocurrió un error.", "error");
+          return;
+        }
+
+        // Si fue REGISTRO exitoso, avisamos y cambiamos a login
+        if (modoAcceso === "registro") {
+          mostrarAviso("aviso-acceso", "¡Cuenta creada! Ahora inicia sesión.", "ok");
+          cambiarPestana("login");
+          return;
+        }
+
+        // Si fue LOGIN exitoso, guardamos el token y entramos
+        guardarToken(datos.access_token);
+        entrarADespensa(email);
+
+      } catch (error) {
+        mostrarAviso("aviso-acceso", "No se pudo conectar con el servidor.", "error");
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Mostrar la pantalla de despensa y cargar los ingredientes
+    // ----------------------------------------------------------
+    function entrarADespensa(email) {
+      document.getElementById("pantalla-acceso").style.display = "none";
+      document.getElementById("pantalla-despensa").style.display = "block";
+      document.getElementById("texto-usuario").textContent = email || "Tu mercadito";
+      cargarIngredientes();
+    }
+
+    // ----------------------------------------------------------
+    // CERRAR SESIÓN: borrar el token y volver al acceso
+    // ----------------------------------------------------------
+    function cerrarSesion() {
+      borrarToken();
+      document.getElementById("pantalla-despensa").style.display = "none";
+      document.getElementById("pantalla-acceso").style.display = "block";
+      document.getElementById("password").value = "";
+    }
+
+    // ----------------------------------------------------------
+    // Aquí guardamos los ingredientes que están en pantalla, para
+    // poder buscar sus datos cuando el usuario edita uno.
+    let ingredientesActuales = [];
+
+    // LISTAR los ingredientes del usuario (GET /ingredientes/)
+    // ----------------------------------------------------------
+    async function cargarIngredientes() {
+      try {
+        const respuesta = await fetch("/ingredientes/", {
+          // Mandamos el token para que la API sepa quiénes somos
+          headers: { "Authorization": "Bearer " + obtenerToken() },
+        });
+
+        // Si el token expiró, nos saca al login
+        if (respuesta.status === 401) { cerrarSesion(); return; }
+
+        const ingredientes = await respuesta.json();
+        ingredientesActuales = ingredientes;   // los recordamos
+        pintarLista(ingredientes);
+      } catch (error) {
+        mostrarAviso("aviso-despensa", "No se pudieron cargar los ingredientes.", "error");
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Dibujar la lista de ingredientes en la pantalla
+    // ----------------------------------------------------------
+    function pintarLista(ingredientes) {
+      const lista = document.getElementById("lista-ingredientes");
+      lista.innerHTML = "";   // limpiamos antes de volver a pintar
+
+      if (ingredientes.length === 0) {
+        lista.innerHTML = '<div class="vacio">Tu mercadito está vacío. Agrega tu primer ingrediente.</div>';
+        return;
+      }
+
+      // Por cada ingrediente creamos un <li> con su info y dos botones:
+      // Editar y Eliminar. Al <li> le ponemos un id para poder reemplazarlo
+      // cuando se entre a modo edición.
+      ingredientes.forEach(function (ing) {
+        const li = document.createElement("li");
+        li.id = "fila-" + ing.id;
+        li.innerHTML =
+          '<span class="info-ing">' + ing.nombre +
+          ' <span class="cantidad">· ' + ing.cantidad + ' ' + ing.unidad + '</span></span>' +
+          '<span class="acciones">' +
+          '  <button class="editar" onclick="editarIngrediente(' + ing.id + ')">Editar</button>' +
+          '  <button class="borrar" onclick="borrarIngrediente(' + ing.id + ')">Eliminar</button>' +
+          '</span>';
+        lista.appendChild(li);
+      });
+    }
+
+    // ----------------------------------------------------------
+    // EDITAR: convierte la fila en un formulario para modificar
+    // el ingrediente (nombre, cantidad y unidad).
+    // ----------------------------------------------------------
+    function editarIngrediente(id) {
+      // Buscamos los datos actuales del ingrediente que recordamos
+      const ing = ingredientesActuales.find(function (x) { return x.id === id; });
+      if (!ing) return;
+
+      // Reemplazamos esa fila por inputs + botones Guardar/Cancelar
+      const li = document.getElementById("fila-" + id);
+      li.innerHTML =
+        '<div class="fila-editar">' +
+        '  <input id="edit-nombre-' + id + '" value="' + ing.nombre + '">' +
+        '  <input id="edit-cantidad-' + id + '" type="number" value="' + ing.cantidad + '">' +
+        '  <input id="edit-unidad-' + id + '" value="' + ing.unidad + '">' +
+        '</div>' +
+        '<span class="acciones">' +
+        '  <button class="editar" onclick="guardarEdicion(' + id + ')">Guardar</button>' +
+        '  <button class="borrar" onclick="cargarIngredientes()">Cancelar</button>' +
+        '</span>';
+    }
+
+    // ----------------------------------------------------------
+    // GUARDAR EDICIÓN: envía los cambios a la API (PUT /ingredientes/{id})
+    // ----------------------------------------------------------
+    async function guardarEdicion(id) {
+      const nombre = document.getElementById("edit-nombre-" + id).value.trim();
+      const cantidad = parseFloat(document.getElementById("edit-cantidad-" + id).value) || 1;
+      const unidad = document.getElementById("edit-unidad-" + id).value.trim() || "unidad";
+
+      if (!nombre) {
+        mostrarAviso("aviso-despensa", "El nombre no puede quedar vacío.", "error");
+        return;
+      }
+
+      try {
+        const respuesta = await fetch("/ingredientes/" + id, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + obtenerToken(),
+          },
+          body: JSON.stringify({ nombre: nombre, cantidad: cantidad, unidad: unidad }),
+        });
+        if (respuesta.status === 401) { cerrarSesion(); return; }
+        ocultarAviso("aviso-despensa");
+        cargarIngredientes();   // recargamos la lista ya actualizada
+      } catch (error) {
+        mostrarAviso("aviso-despensa", "No se pudo guardar el cambio.", "error");
+      }
+    }
+
+    // ----------------------------------------------------------
+    // AGREGAR un ingrediente (POST /ingredientes/)
+    // ----------------------------------------------------------
+    async function agregarIngrediente() {
+      const nombre = document.getElementById("ing-nombre").value.trim();
+      const cantidad = parseFloat(document.getElementById("ing-cantidad").value) || 1;
+      const unidad = document.getElementById("ing-unidad").value.trim() || "unidad";
+
+      if (!nombre) {
+        mostrarAviso("aviso-despensa", "Escribe el nombre del ingrediente.", "error");
+        return;
+      }
+
+      try {
+        const respuesta = await fetch("/ingredientes/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + obtenerToken(),
+          },
+          body: JSON.stringify({ nombre: nombre, cantidad: cantidad, unidad: unidad }),
+        });
+
+        if (respuesta.status === 401) { cerrarSesion(); return; }
+
+        // Limpiamos el formulario y recargamos la lista
+        document.getElementById("ing-nombre").value = "";
+        document.getElementById("ing-cantidad").value = "1";
+        document.getElementById("ing-unidad").value = "unidad";
+        ocultarAviso("aviso-despensa");
+        cargarIngredientes();
+      } catch (error) {
+        mostrarAviso("aviso-despensa", "No se pudo agregar el ingrediente.", "error");
+      }
+    }
+
+    // ----------------------------------------------------------
+    // BORRAR un ingrediente (DELETE /ingredientes/{id})
+    // ----------------------------------------------------------
+    async function borrarIngrediente(id) {
+      // Preguntamos antes de borrar. Si el usuario cancela, no hacemos nada.
+      const seguro = confirm("¿Seguro que quieres eliminar este ingrediente?");
+      if (!seguro) return;
+
+      try {
+        const respuesta = await fetch("/ingredientes/" + id, {
+          method: "DELETE",
+          headers: { "Authorization": "Bearer " + obtenerToken() },
+        });
+        if (respuesta.status === 401) { cerrarSesion(); return; }
+        cargarIngredientes();
+      } catch (error) {
+        mostrarAviso("aviso-despensa", "No se pudo borrar el ingrediente.", "error");
+      }
+    }
+
+    // ----------------------------------------------------------
+    // AL ABRIR LA PÁGINA: si ya hay un token guardado, entramos
+    // directo a la despensa (sesión recordada).
+    // ----------------------------------------------------------
+    if (obtenerToken()) {
+      entrarADespensa("Tu mercadito");
+    }
+  </script>
+</body>
+</html>
