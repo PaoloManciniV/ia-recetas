@@ -22,6 +22,9 @@ from app.database import Base, engine
 # antes de crearlas. (usuarios e ingredientes)
 from app.models import usuario, ingrediente  # noqa: F401
 from app.routers import ingredientes, usuarios
+from app.models import receta, calificacion
+
+from app.routers import ingredientes, usuarios, recetas, calificaciones
 
 # Crea las tablas en la base de datos si no existen
 Base.metadata.create_all(bind=engine)
@@ -35,6 +38,8 @@ app = FastAPI(
 # Conectamos los routers (los endpoints de la API)
 app.include_router(usuarios.router)
 app.include_router(ingredientes.router)
+app.include_router(recetas.router)
+app.include_router(calificaciones.router)
 
 # Servimos la carpeta /static (para el favicon y archivos de la web)
 app.mount("/static", StaticFiles(directory="static"), name="static")
