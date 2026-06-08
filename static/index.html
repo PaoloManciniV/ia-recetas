@@ -434,8 +434,8 @@
 
     <!-- Navegación: Despensa / Historial -->
     <div class="nav-interna">
-      <button id="nav-despensa" class="activa" onclick="mostrarTab('despensa')">🧺 Despensa</button>
-      <button id="nav-historial" onclick="mostrarTab('historial')">📋 Mis recetas</button>
+     <button id="nav-despensa" class="activa" onclick="mostrarTab('despensa')">🏠 Inicio</button>
+      <button id="nav-historial" onclick="mostrarTab('historial')">📖 Mis recetas</button>
     </div>
 
     <!-- SUB-SECCIÓN: Despensa (ingredientes) -->
@@ -467,7 +467,7 @@
   <!-- ============ PANTALLA 3: RECETA GENERADA ============ -->
   <div class="tarjeta" id="pantalla-receta">
     <div class="barra-usuario">
-      <span class="correo">Receta generada ✨</span>
+      <span class="correo">🍽️ Tu receta lista</span>
       <button class="btn btn-fantasma" onclick="volverADespensa()">← Volver</button>
     </div>
     <div class="aviso" id="aviso-receta"></div>
@@ -688,11 +688,9 @@
 
     // ─── GENERAR RECETA (Funcionalidad 3) ────────────────────
     async function generarReceta() {
-      if (ingredientesActuales.length === 0) {
-        mostrarAviso("aviso-despensa", "Agrega al menos un ingrediente antes de generar una receta.", "error");
-        return;
-      }
-
+      if (ingredientesActuales.length < 2) {
+        mostrarAviso("aviso-despensa", "Agrega al menos 2 ingredientes antes de generar una receta.", "error");
+       
       const btn = document.getElementById("btn-generar");
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span>Generando receta…';
@@ -719,7 +717,7 @@
         mostrarAviso("aviso-despensa", "No se pudo conectar con el servidor.", "error");
       } finally {
         btn.disabled = false;
-        btn.innerHTML = "✨ Generar receta con mi despensa";
+        btn.innerHTML = "🍳 Generar receta con mi despensa";
       }
     }
 
@@ -773,7 +771,7 @@
     // ─── HISTORIAL (Funcionalidad 4) ─────────────────────────
     async function cargarHistorial() {
       const contenedor = document.getElementById("lista-historial");
-      contenedor.innerHTML = '<div class="vacio">Cargando…</div>';
+      contenedor.innerHTML = '<div class="vacio">⏳ Cargando tus recetas…</div>';
       ocultarAviso("aviso-historial");
 
       try {
@@ -823,7 +821,7 @@
           ${promedioHTML}
           <div class="historial-btns">
             <button class="btn-ver-hist" onclick="verRecetaDelHistorial(${receta.id})">Ver</button>
-            <button class="btn-del-hist" onclick="eliminarReceta(${receta.id})">Eliminar</button>
+            <button class="btn-del-hist" onclick="eliminarReceta(${receta.id})">🗑 Eliminar</button>
           </div>
         </div>
       `;
