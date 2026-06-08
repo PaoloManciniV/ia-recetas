@@ -688,11 +688,9 @@
 
     // ─── GENERAR RECETA (Funcionalidad 3) ────────────────────
     async function generarReceta() {
-      if (ingredientesActuales.length === 0) {
-        mostrarAviso("aviso-despensa", "Agrega al menos un ingrediente antes de generar una receta.", "error");
-        return;
-      }
-
+      if (ingredientesActuales.length < 2) {
+        mostrarAviso("aviso-despensa", "Agrega al menos 2 ingredientes antes de generar una receta.", "error");
+       
       const btn = document.getElementById("btn-generar");
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span>Generando receta…';
