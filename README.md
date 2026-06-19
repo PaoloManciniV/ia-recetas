@@ -112,12 +112,3 @@ Es la misma receta.
 
 ---
 
-## Equipo
-
-La nota es individual y cada integrante debe tener minimo 10 commits con
-mensajes descriptivos.
-
-- Paolo 
-- Maria         
-- Roberto         
-- Harley        
