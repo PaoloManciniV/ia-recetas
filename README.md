@@ -1,6 +1,6 @@
 # Generador de Recetas con Inventario
 
-Proyecto final de Tecnologias Web. Aplicacion web que permite registrar los
+Proyecto justfun. Aplicacion web que permite registrar los
 ingredientes que tienes en casa y, a partir de ese inventario, generar recetas
 con un modelo de lenguaje (LLM).
 
